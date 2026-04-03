@@ -90,7 +90,12 @@ def _get_credentials():
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
+            flow.redirect_uri = "urn:ietf:wg:oauth:2.0:oob"
+            auth_url, _ = flow.authorization_url(prompt="consent")
+            print(f"\nVisit this URL to authorise:\n\n{auth_url}\n")
+            code = input("Paste the authorisation code here: ").strip()
+            flow.fetch_token(code=code)
+            creds = flow.credentials
         with open(TOKEN_FILE, "wb") as f:
             pickle.dump(creds, f)
     return creds
