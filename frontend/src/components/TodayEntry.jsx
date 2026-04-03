@@ -116,9 +116,17 @@ function YesNoToggle({ value, onChange }) {
   )
 }
 
+function isFieldFilled(key, value) {
+  if (value === null || value === undefined || value === '') return false
+  if (typeof value === 'boolean') return true   // yes/no answered
+  if (typeof value === 'number') return value > 0
+  return String(value).trim() !== ''
+}
+
 export default function TodayEntry({ today: existing }) {
   const [form, setForm]     = useState({ date: todayStr })
   const [copied, setCopied] = useState(false)
+  const [showAll, setShowAll] = useState(false)
 
   useEffect(() => {
     if (existing) setForm({ ...existing })
@@ -163,37 +171,52 @@ export default function TodayEntry({ today: existing }) {
         <span>Fill in your habits below, then click <strong>Download CSV</strong> or <strong>Copy Row</strong> — paste it as a new row in your Google Sheet.</span>
       </div>
 
-      {SECTIONS.map(({ title, fields }) => (
-        <div key={title} className="card space-y-4">
-          <p className="font-semibold text-white text-sm">{title}</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {fields.map(({ key, type, label, min, max }) => {
-              const lbl = label ?? LABEL_MAP[key] ?? key
-              if (type === 'yesno') {
+      {existing && (
+        <div className="flex items-center justify-between">
+          <p className="text-xs text-slate-500">Showing only unfilled fields. Already logged fields are hidden.</p>
+          <button onClick={() => setShowAll(v => !v)} className="text-xs text-saffron underline underline-offset-2">
+            {showAll ? 'Show unfilled only' : 'Show all fields'}
+          </button>
+        </div>
+      )}
+
+      {SECTIONS.map(({ title, fields }) => {
+        const visibleFields = fields.filter(({ key }) =>
+          showAll || !existing || !isFieldFilled(key, form[key])
+        )
+        if (!visibleFields.length) return null
+        return (
+          <div key={title} className="card space-y-4">
+            <p className="font-semibold text-white text-sm">{title}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {visibleFields.map(({ key, type, label, min, max }) => {
+                const lbl = label ?? LABEL_MAP[key] ?? key
+                if (type === 'yesno') {
+                  return (
+                    <div key={key} className="flex items-center justify-between gap-2">
+                      <label className="text-sm text-slate-300">{lbl}</label>
+                      <YesNoToggle value={form[key] ?? null} onChange={v => set(key, v)} />
+                    </div>
+                  )
+                }
                 return (
-                  <div key={key} className="flex items-center justify-between gap-2">
-                    <label className="text-sm text-slate-300">{lbl}</label>
-                    <YesNoToggle value={form[key] ?? null} onChange={v => set(key, v)} />
+                  <div key={key} className="flex flex-col gap-1.5">
+                    <label className="text-xs text-slate-500">{lbl}</label>
+                    <input
+                      type={type === 'number' ? 'number' : type === 'time' ? 'time' : 'text'}
+                      value={form[key] ?? ''}
+                      onChange={e => set(key, e.target.value)}
+                      min={min} max={max}
+                      className="w-full"
+                      placeholder={type === 'number' ? '0' : ''}
+                    />
                   </div>
                 )
-              }
-              return (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <label className="text-xs text-slate-500">{lbl}</label>
-                  <input
-                    type={type === 'number' ? 'number' : type === 'time' ? 'time' : 'text'}
-                    value={form[key] ?? ''}
-                    onChange={e => set(key, e.target.value)}
-                    min={min} max={max}
-                    className="w-full"
-                    placeholder={type === 'number' ? '0' : ''}
-                  />
-                </div>
-              )
-            })}
+              })}
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
 
       <div className="flex gap-2 justify-end">
         <button onClick={handleCopy} className="btn-ghost flex items-center gap-2 text-sm">

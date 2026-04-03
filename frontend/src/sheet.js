@@ -97,13 +97,25 @@ function normaliseRow(raw) {
   return entry
 }
 
-export async function fetchSheetData() {
-  const res = await fetch('/sheet-data')
+async function fetchTab(url) {
+  const res = await fetch(url)
   if (!res.ok) throw new Error('Could not load sheet. Make sure it is set to public (Anyone with link → Viewer).')
   const text = await res.text()
   const { data } = Papa.parse(text, { skipEmptyLines: true })
   if (!data || data.length < 2) return []
   return data.slice(1).map(normaliseRow)
+}
+
+export async function fetchSheetData() {
+  const [q1, q2] = await Promise.all([
+    fetchTab('/sheet-q1'),
+    fetchTab('/sheet-q2'),
+  ])
+  const combined = [...q1, ...q2]
+  // Sort by date, remove blank-date rows
+  return combined
+    .filter(r => r.date)
+    .sort((a, b) => (a.date > b.date ? 1 : -1))
 }
 
 // Export a single entry as a CSV row in the exact sheet column order
