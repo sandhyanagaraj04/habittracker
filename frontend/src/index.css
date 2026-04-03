@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+
+  body {
+    @apply bg-bg-deep text-slate-100 font-sans antialiased;
+    background: radial-gradient(ellipse at 20% 20%, rgba(168, 85, 247, 0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 80%, rgba(249, 115, 22, 0.05) 0%, transparent 60%),
+                #08080F;
+    min-height: 100vh;
+  }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full; }
+}
+
+@layer components {
+  .card {
+    @apply bg-bg-card border border-border rounded-2xl p-5;
+  }
+
+  .card-sm {
+    @apply bg-bg-card border border-border rounded-xl p-4;
+  }
+
+  .badge-yes {
+    @apply inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full
+           bg-emerald-500/15 text-emerald-400 border border-emerald-500/20;
+  }
+
+  .badge-no {
+    @apply inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full
+           bg-rose-500/15 text-rose-400 border border-rose-500/20;
+  }
+
+  .btn-primary {
+    @apply bg-saffron hover:bg-saffron-light text-white font-semibold
+           px-5 py-2.5 rounded-xl transition-all duration-200
+           shadow-lg shadow-saffron/20 active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply border border-border hover:bg-bg-hover text-slate-300
+           px-4 py-2 rounded-xl transition-all duration-200 active:scale-95;
+  }
+
+  .section-title {
+    @apply text-xs font-semibold tracking-widest uppercase text-slate-500 mb-3;
+  }
+
+  .toggle-yes {
+    @apply w-5 h-5 rounded-md border-2 flex items-center justify-center cursor-pointer transition-all duration-150;
+  }
+}
+
+/* Custom form overrides */
+input[type='text'],
+input[type='time'],
+input[type='number'],
+textarea,
+select {
+  @apply bg-bg-hover border-border text-slate-100 rounded-lg text-sm
+         focus:ring-1 focus:ring-saffron focus:border-saffron;
+}
