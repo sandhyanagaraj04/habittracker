@@ -4,20 +4,20 @@ import Dashboard from './components/Dashboard'
 import TodayEntry from './components/TodayEntry'
 import Analytics from './components/Analytics'
 import History from './components/History'
+import Q2Daily from './components/Q2Daily'
 import { fetchSheetData } from './sheet'
 
 export default function App() {
-  const [tab, setTab]     = useState('dashboard')
-  const [data, setData]   = useState([])
+  const [tab, setTab]         = useState('dashboard')
+  const [data, setData]       = useState([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError]     = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const d = await fetchSheetData()
-      setData(d)
+      setData(await fetchSheetData())
     } catch (e) {
       setError(e.message)
     } finally {
@@ -50,7 +50,7 @@ export default function App() {
               <p className="text-white font-semibold">Sheet not accessible</p>
               <p className="text-slate-400 text-sm">{error}</p>
               <p className="text-slate-500 text-xs">
-                Open your Google Sheet → Share → Change to <strong className="text-slate-300">Anyone with the link → Viewer</strong>
+                Open your Google Sheet → Share → <strong className="text-slate-300">Anyone with the link → Viewer</strong>
               </p>
               <button className="btn-primary" onClick={load}>Retry</button>
             </div>
@@ -62,6 +62,7 @@ export default function App() {
             {tab === 'dashboard' && <Dashboard data={data} today={today} onRefresh={load} />}
             {tab === 'log'       && <TodayEntry today={today} />}
             {tab === 'analytics' && <Analytics data={data} />}
+            {tab === 'q2daily'   && <Q2Daily />}
             {tab === 'history'   && <History data={data} />}
           </>
         )}

@@ -18,6 +18,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: () => `/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=117404340`,
       },
+      '/sheet-q2-daily': {
+        target: 'https://docs.google.com',
+        changeOrigin: true,
+        rewrite: () => `/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=1887540425`,
+      },
     },
   },
 })

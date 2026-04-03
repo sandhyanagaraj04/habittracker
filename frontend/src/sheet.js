@@ -80,9 +80,11 @@ function normaliseRow(raw) {
     entry[key] = raw[i] ?? ''
   })
 
+  // null = no data entered, true = Yes, false = No
   YES_NO_KEYS.forEach(k => {
     const v = String(entry[k] ?? '').trim().toLowerCase()
-    entry[k] = v === 'yes' || v === 'y' || v === 'true' || v === '1' || v === '✓'
+    if (!v) entry[k] = null
+    else entry[k] = v === 'yes' || v === 'y' || v === 'true' || v === '1' || v === '✓'
   })
 
   NUMERIC_KEYS.forEach(k => {
@@ -111,11 +113,35 @@ export async function fetchSheetData() {
     fetchTab('/sheet-q1'),
     fetchTab('/sheet-q2'),
   ])
-  const combined = [...q1, ...q2]
-  // Sort by date, remove blank-date rows
-  return combined
+  return [...q1, ...q2]
     .filter(r => r.date)
     .sort((a, b) => (a.date > b.date ? 1 : -1))
+}
+
+// Returns { headers, rows } as raw strings for generic display
+export async function fetchQ2Daily() {
+  const res = await fetch('/sheet-q2-daily')
+  if (!res.ok) return { headers: [], rows: [] }
+  const text = await res.text()
+  const { data } = Papa.parse(text, { skipEmptyLines: true })
+  if (!data || data.length < 1) return { headers: [], rows: [] }
+  return { headers: data[0], rows: data.slice(1) }
+}
+
+// Q1: Jan–Mar, Q2: Apr–Jun
+export function splitByQuarter(data) {
+  return {
+    q1: data.filter(r => r.date >= '2026-01-01' && r.date <= '2026-03-31'),
+    q2: data.filter(r => r.date >= '2026-04-01' && r.date <= '2026-06-30'),
+  }
+}
+
+export const Q1_TOTAL_DAYS = 90   // Jan(31) + Feb(28) + Mar(31)
+
+export function q2ElapsedDays() {
+  const start = new Date('2026-04-01')
+  const today = new Date()
+  return Math.max(1, Math.min(91, Math.floor((today - start) / 86400000) + 1))
 }
 
 // Export a single entry as a CSV row in the exact sheet column order
@@ -123,18 +149,15 @@ export function exportRowAsCSV(entry, dateStr) {
   const values = COLUMN_MAP.map(([key]) => {
     if (key === 'date') return dateStr
     const val = entry[key]
+    if (val === null || val === undefined) return ''
     if (typeof val === 'boolean') return val ? 'Yes' : 'No'
-    return val ?? ''
+    return val
   })
-
-  const escaped = values.map(v => {
+  return values.map(v => {
     const s = String(v)
     return s.includes(',') || s.includes('"') || s.includes('\n')
-      ? `"${s.replace(/"/g, '""')}"`
-      : s
-  })
-
-  return escaped.join(',')
+      ? `"${s.replace(/"/g, '""')}"` : s
+  }).join(',')
 }
 
 export function downloadCSV(csvRow, dateStr) {
