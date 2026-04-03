@@ -4,6 +4,8 @@ import {
 } from 'recharts'
 import { useMemo, useState } from 'react'
 import { format, parseISO, isValid } from 'date-fns'
+import { parseSleepDuration, SADHANA_KEYS, SPIRITUAL_KEYS, HEALTH_KEYS, LABEL_MAP, calcStreak } from '../utils/transform'
+import { splitByQuarter, Q1_TOTAL_DAYS, q2ElapsedDays } from '../sheet'
 
 function safeFormat(dateStr) {
   try {
@@ -13,8 +15,6 @@ function safeFormat(dateStr) {
     return dateStr
   }
 }
-import { parseSleepDuration, SADHANA_KEYS, SPIRITUAL_KEYS, HEALTH_KEYS, LABEL_MAP, calcStreak } from '../utils/transform'
-import { splitByQuarter, Q1_TOTAL_DAYS, q2ElapsedDays } from '../sheet'
 
 const TT = {
   contentStyle: { background: '#111120', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, fontSize: 12 },
@@ -56,13 +56,27 @@ function avgSleepHours(rows) {
   return (d.reduce((a, b) => a + b, 0) / d.length).toFixed(1) + 'h'
 }
 
-// ── Habit stats for a quarter ─────────────────────────────────────────────────
+// ── Habit stats for a set of rows ─────────────────────────────────────────────
 function habitStats(rows, totalDays, key) {
-  const yes      = rows.filter(r => r[key] === true).length
-  const no       = rows.filter(r => r[key] === false).length
-  const noData   = totalDays - yes - no
+  const yes    = rows.filter(r => r[key] === true).length
+  const no     = rows.filter(r => r[key] === false).length
+  const noData = totalDays - yes - no
   return { yes, no, noData, totalDays }
 }
+
+// ── Generate ISO date list ─────────────────────────────────────────────────────
+function genDateList(startISO, days) {
+  const list = []
+  const start = new Date(startISO + 'T00:00:00')
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start)
+    d.setDate(d.getDate() + i)
+    list.push(d.toISOString().slice(0, 10))
+  }
+  return list
+}
+
+const Q1_DATES = genDateList('2026-01-01', 90)
 
 // ── Sub-tab button ────────────────────────────────────────────────────────────
 function SubTab({ active, onClick, children }) {
@@ -75,46 +89,84 @@ function SubTab({ active, onClick, children }) {
   )
 }
 
-// ── Habit stats table ─────────────────────────────────────────────────────────
-function HabitTable({ rows, totalDays, label }) {
+// ── 90-day row grid ───────────────────────────────────────────────────────────
+function HabitRowGrid({ rows, totalDays, dateList, label }) {
+  const [expanded, setExpanded] = useState(null)
+
+  const dataByDate = useMemo(() => {
+    const m = {}
+    rows.forEach(r => { if (r.date) m[r.date] = r })
+    return m
+  }, [rows])
+
   return (
-    <div className="card">
-      <p className="section-title">{label} — Habit Breakdown ({totalDays} days total)</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-slate-500 border-b border-border">
-              <th className="text-left py-2 pr-4 font-medium">Habit</th>
-              <th className="text-center py-2 px-3 font-medium text-emerald-400">Yes</th>
-              <th className="text-center py-2 px-3 font-medium text-rose-400">No</th>
-              <th className="text-center py-2 px-3 font-medium text-slate-500">No data</th>
-              <th className="text-left py-2 pl-3 font-medium">Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {ALL_HABIT_KEYS.map(key => {
-              const { yes, no, noData } = habitStats(rows, totalDays, key)
-              const rate = totalDays ? Math.round((yes / totalDays) * 100) : 0
-              return (
-                <tr key={key} className="border-b border-white/3 hover:bg-white/2">
-                  <td className="py-2 pr-4 text-slate-300">{LABEL_MAP[key] ?? key}</td>
-                  <td className="py-2 px-3 text-center text-emerald-400 font-semibold">{yes}</td>
-                  <td className="py-2 px-3 text-center text-rose-400">{no}</td>
-                  <td className="py-2 px-3 text-center text-slate-600">{noData}</td>
-                  <td className="py-2 pl-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-20 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-saffron to-spirit rounded-full"
-                          style={{ width: `${rate}%` }} />
-                      </div>
-                      <span className="text-saffron font-semibold w-8">{rate}%</span>
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+    <div className="card p-0 overflow-hidden">
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+        <p className="section-title mb-0">{label}</p>
+        <p className="text-xs text-slate-500">{totalDays} days · {rows.length} logged</p>
+      </div>
+
+      {/* Legend */}
+      <div className="px-4 pt-2 pb-1 flex items-center gap-4 text-xs text-slate-500 border-b border-white/3">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />Yes</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-rose-500/70 inline-block" />No</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-white/10 inline-block" />No data</span>
+      </div>
+
+      <div className="divide-y divide-white/3">
+        {ALL_HABIT_KEYS.map(key => {
+          const isOpen = expanded === key
+          const stats  = habitStats(rows, totalDays, key)
+          const rate   = totalDays ? Math.round((stats.yes / totalDays) * 100) : 0
+          const streak = calcStreak(rows, key)
+
+          return (
+            <div key={key}>
+              <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/2 transition-colors">
+                <button
+                  onClick={() => setExpanded(isOpen ? null : key)}
+                  className="text-slate-600 hover:text-slate-300 flex-shrink-0 text-xs w-3"
+                  title="Toggle summary"
+                >
+                  {isOpen ? '▲' : '▼'}
+                </button>
+
+                <span className="text-xs text-slate-300 w-40 flex-shrink-0 truncate" title={LABEL_MAP[key] ?? key}>
+                  {LABEL_MAP[key] ?? key}
+                </span>
+
+                <div className="flex gap-px overflow-x-auto flex-1 min-w-0 py-0.5">
+                  {dateList.map(date => {
+                    const row = dataByDate[date]
+                    const v   = row ? row[key] : null
+                    const cls = v === true
+                      ? 'bg-emerald-500'
+                      : v === false
+                        ? 'bg-rose-500/70'
+                        : 'bg-white/10'
+                    return (
+                      <span
+                        key={date}
+                        className={`flex-shrink-0 w-2 h-4 rounded-sm ${cls}`}
+                        title={`${safeFormat(date)}: ${v === true ? 'Yes' : v === false ? 'No' : 'No data'}`}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+
+              {isOpen && (
+                <div className="flex items-center gap-5 px-8 pb-2.5 pt-0.5 text-xs">
+                  <span className="text-emerald-400 font-medium">✓ {stats.yes} yes</span>
+                  <span className="text-rose-400">✗ {stats.no} no</span>
+                  <span className="text-slate-600">— {stats.noData} no data</span>
+                  <span className="text-saffron font-semibold">{rate}%</span>
+                  <span className="text-slate-400">🔥 {streak}d streak</span>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -150,37 +202,6 @@ function OverviewCards({ data }) {
   )
 }
 
-// ── Habit trend card ──────────────────────────────────────────────────────────
-function HabitTrendCard({ label, last30, allData, habitKey }) {
-  const streak = calcStreak(allData, habitKey)
-  const rate   = allData.length
-    ? Math.round(allData.filter(r => r[habitKey] === true).length / allData.length * 100)
-    : 0
-
-  return (
-    <div className="card-sm space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium text-white leading-tight">{label}</p>
-        <span className="text-xs text-saffron font-semibold flex-shrink-0">🔥 {streak}d</span>
-      </div>
-
-      {/* Last 30 days dot grid */}
-      <div className="flex flex-wrap gap-0.5">
-        {last30.map((r, i) => {
-          const v = r[habitKey]
-          const color = v === true ? 'bg-emerald-500' : v === false ? 'bg-rose-500/50' : 'bg-white/10'
-          return <span key={i} className={`w-2.5 h-2.5 rounded-sm ${color}`} title={r.date} />
-        })}
-      </div>
-
-      <div className="flex items-center justify-between text-xs text-slate-500">
-        <span>{allData.filter(r => r[habitKey] === true).length} yes · {allData.filter(r => r[habitKey] === false).length} no</span>
-        <span className="text-saffron font-semibold">{rate}%</span>
-      </div>
-    </div>
-  )
-}
-
 // ── Trends (last 30 days) ─────────────────────────────────────────────────────
 function Trends({ data }) {
   const last30 = data.slice(-30)
@@ -208,6 +229,7 @@ function Trends({ data }) {
     })),
     [last30])
 
+  const trendDates = useMemo(() => last30.map(r => r.date), [last30])
 
   return (
     <div className="space-y-5">
@@ -276,20 +298,12 @@ function Trends({ data }) {
         </div>
       </div>
 
-      <div>
-        <p className="section-title">All Habits — Last 30 Days (🟢 Yes · 🔴 No · ⬛ No data)</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {ALL_HABIT_KEYS.map(k => (
-            <HabitTrendCard
-              key={k}
-              habitKey={k}
-              label={LABEL_MAP[k] ?? k}
-              last30={last30}
-              allData={data}
-            />
-          ))}
-        </div>
-      </div>
+      <HabitRowGrid
+        rows={last30}
+        totalDays={last30.length || 30}
+        dateList={trendDates}
+        label="All Habits — Last 30 Days"
+      />
     </div>
   )
 }
@@ -299,6 +313,7 @@ export default function Analytics({ data }) {
   const [sub, setSub] = useState('overview')
   const { q1, q2 } = useMemo(() => splitByQuarter(data), [data])
   const q2Days = q2ElapsedDays()
+  const q2Dates = useMemo(() => genDateList('2026-04-01', q2Days), [q2Days])
 
   return (
     <div className="p-6 space-y-5 max-w-6xl mx-auto">
@@ -316,9 +331,23 @@ export default function Analytics({ data }) {
       </div>
 
       {sub === 'overview' && <OverviewCards data={data} />}
-      {sub === 'q1'       && <HabitTable rows={q1} totalDays={Q1_TOTAL_DAYS} label="Q1 (Jan–Mar)" />}
-      {sub === 'q2'       && <HabitTable rows={q2} totalDays={q2Days} label={`Q2 (Apr–Jun, ${q2Days} days elapsed)`} />}
-      {sub === 'trends'   && <Trends data={data} />}
+      {sub === 'q1' && (
+        <HabitRowGrid
+          rows={q1}
+          totalDays={Q1_TOTAL_DAYS}
+          dateList={Q1_DATES}
+          label="Q1 (Jan–Mar) — 90 Days"
+        />
+      )}
+      {sub === 'q2' && (
+        <HabitRowGrid
+          rows={q2}
+          totalDays={q2Days}
+          dateList={q2Dates}
+          label={`Q2 (Apr–Jun) — ${q2Days} days elapsed`}
+        />
+      )}
+      {sub === 'trends' && <Trends data={data} />}
     </div>
   )
 }

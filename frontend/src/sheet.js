@@ -74,11 +74,21 @@ export const NUMERIC_KEYS = new Set(['ashwat_count','steps','heart_points','read
 
 const QUALITY_MAP = { good:4, great:5, ok:3, bad:2, poor:1, excellent:5 }
 
+function parseDDMMYYYY(str) {
+  const m = String(str ?? '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!m) return str
+  const [, dd, mm, yyyy] = m
+  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
+}
+
 function normaliseRow(raw) {
   const entry = {}
   COLUMN_MAP.forEach(([key], i) => {
     entry[key] = raw[i] ?? ''
   })
+
+  // Convert DD/MM/YYYY → ISO YYYY-MM-DD for correct sorting & comparison
+  entry.date = parseDDMMYYYY(entry.date)
 
   // null = no data entered, true = Yes, false = No
   YES_NO_KEYS.forEach(k => {
@@ -128,7 +138,7 @@ export async function fetchQ2Daily() {
   return { headers: data[0], rows: data.slice(1) }
 }
 
-// Q1: Jan–Mar, Q2: Apr–Jun
+// Q1: Jan–Mar, Q2: Apr–Jun  (dates are already ISO YYYY-MM-DD after normaliseRow)
 export function splitByQuarter(data) {
   return {
     q1: data.filter(r => r.date >= '2026-01-01' && r.date <= '2026-03-31'),
