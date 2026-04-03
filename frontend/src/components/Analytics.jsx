@@ -3,7 +3,16 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts'
 import { useMemo, useState } from 'react'
-import { format, parseISO } from 'date-fns'
+import { format, parseISO, isValid } from 'date-fns'
+
+function safeFormat(dateStr) {
+  try {
+    const d = parseISO(dateStr)
+    return isValid(d) ? format(d, 'MMM d') : dateStr
+  } catch {
+    return dateStr
+  }
+}
 import { parseSleepDuration, SADHANA_KEYS, SPIRITUAL_KEYS, HEALTH_KEYS, LABEL_MAP, calcStreak } from '../utils/transform'
 import { splitByQuarter, Q1_TOTAL_DAYS, q2ElapsedDays } from '../sheet'
 
@@ -178,7 +187,7 @@ function Trends({ data }) {
 
   const sleepData = useMemo(() =>
     last30.map(r => ({
-      date: r.date ? format(parseISO(r.date), 'MMM d') : '',
+      date: safeFormat(r.date),
       duration: parseSleepDuration(r.sleep_duration),
       quality: r.sleep_quality,
     })).filter(r => r.duration),
@@ -186,7 +195,7 @@ function Trends({ data }) {
 
   const fitnessData = useMemo(() =>
     last30.map(r => ({
-      date: r.date ? format(parseISO(r.date), 'MMM d') : '',
+      date: safeFormat(r.date),
       steps: r.steps || 0,
       heart: r.heart_points || 0,
     })).filter(r => r.steps > 0 || r.heart > 0),
