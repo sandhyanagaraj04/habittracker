@@ -141,6 +141,37 @@ function OverviewCards({ data }) {
   )
 }
 
+// ── Habit trend card ──────────────────────────────────────────────────────────
+function HabitTrendCard({ label, last30, allData, habitKey }) {
+  const streak = calcStreak(allData, habitKey)
+  const rate   = allData.length
+    ? Math.round(allData.filter(r => r[habitKey] === true).length / allData.length * 100)
+    : 0
+
+  return (
+    <div className="card-sm space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium text-white leading-tight">{label}</p>
+        <span className="text-xs text-saffron font-semibold flex-shrink-0">🔥 {streak}d</span>
+      </div>
+
+      {/* Last 30 days dot grid */}
+      <div className="flex flex-wrap gap-0.5">
+        {last30.map((r, i) => {
+          const v = r[habitKey]
+          const color = v === true ? 'bg-emerald-500' : v === false ? 'bg-rose-500/50' : 'bg-white/10'
+          return <span key={i} className={`w-2.5 h-2.5 rounded-sm ${color}`} title={r.date} />
+        })}
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-slate-500">
+        <span>{allData.filter(r => r[habitKey] === true).length} yes · {allData.filter(r => r[habitKey] === false).length} no</span>
+        <span className="text-saffron font-semibold">{rate}%</span>
+      </div>
+    </div>
+  )
+}
+
 // ── Trends (last 30 days) ─────────────────────────────────────────────────────
 function Trends({ data }) {
   const last30 = data.slice(-30)
@@ -168,13 +199,6 @@ function Trends({ data }) {
     })),
     [last30])
 
-  const topHabits = useMemo(() =>
-    ALL_HABIT_KEYS.map(k => ({
-      name: LABEL_MAP[k] ?? k,
-      rate: data.length ? Math.round(data.filter(r => r[k] === true).length / data.length * 100) : 0,
-      streak: calcStreak(data, k),
-    })).sort((a, b) => b.rate - a.rate).slice(0, 10),
-    [data])
 
   return (
     <div className="space-y-5">
@@ -243,19 +267,17 @@ function Trends({ data }) {
         </div>
       </div>
 
-      <div className="card">
-        <p className="section-title">Top Habits by Completion (all time)</p>
-        <div className="space-y-2">
-          {topHabits.map(({ name, rate, streak }) => (
-            <div key={name} className="flex items-center gap-3">
-              <span className="text-xs text-slate-400 w-44 truncate">{name}</span>
-              <div className="flex-1 h-2 bg-white/5 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-saffron to-spirit rounded-full"
-                  style={{ width: `${rate}%` }} />
-              </div>
-              <span className="text-xs text-saffron font-semibold w-10 text-right">{rate}%</span>
-              <span className="text-xs text-slate-600 w-14 text-right">🔥 {streak}d</span>
-            </div>
+      <div>
+        <p className="section-title">All Habits — Last 30 Days (🟢 Yes · 🔴 No · ⬛ No data)</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {ALL_HABIT_KEYS.map(k => (
+            <HabitTrendCard
+              key={k}
+              habitKey={k}
+              label={LABEL_MAP[k] ?? k}
+              last30={last30}
+              allData={data}
+            />
           ))}
         </div>
       </div>
