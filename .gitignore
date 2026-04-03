@@ -1,5 +1,8 @@
-backend/__pycache__/
+backend/client_secrets.json
 backend/credentials.json
+backend/token.pickle
 backend/.env
-frontend/node_modules/
+__pycache__/
+*.pyc
+node_modules/
 frontend/dist/
