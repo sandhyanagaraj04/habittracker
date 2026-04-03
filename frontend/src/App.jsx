@@ -5,6 +5,7 @@ import TodayEntry from './components/TodayEntry'
 import Analytics from './components/Analytics'
 import History from './components/History'
 import Q2Daily from './components/Q2Daily'
+import ErrorBoundary from './components/ErrorBoundary'
 import { fetchSheetData } from './sheet'
 
 export default function App() {
@@ -58,13 +59,13 @@ export default function App() {
         )}
 
         {!loading && !error && (
-          <>
+          <ErrorBoundary key={tab}>
             {tab === 'dashboard' && <Dashboard data={data} today={today} onRefresh={load} />}
             {tab === 'log'       && <TodayEntry today={today} />}
             {tab === 'analytics' && <Analytics data={data} />}
             {tab === 'q2daily'   && <Q2Daily />}
             {tab === 'history'   && <History data={data} />}
-          </>
+          </ErrorBoundary>
         )}
       </main>
     </div>
