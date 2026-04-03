@@ -4,22 +4,27 @@ import Dashboard from './components/Dashboard'
 import TodayEntry from './components/TodayEntry'
 import Analytics from './components/Analytics'
 import History from './components/History'
-import { fetchAllData, fetchStats } from './api'
+import { fetchAllData, fetchStats, fetchAuthStatus } from './api'
 
 export default function App() {
   const [tab, setTab] = useState('dashboard')
-  const [data, setData]   = useState([])
-  const [stats, setStats] = useState({})
+  const [data, setData]       = useState([])
+  const [stats, setStats]     = useState({})
   const [loading, setLoading] = useState(true)
-  const [error, setError]   = useState(null)
+  const [error, setError]     = useState(null)
+  const [authed, setAuthed]   = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [d, s] = await Promise.all([fetchAllData(), fetchStats()])
-      setData(d)
-      setStats(s)
+      const { authenticated } = await fetchAuthStatus()
+      setAuthed(authenticated)
+      if (authenticated) {
+        const [d, s] = await Promise.all([fetchAllData(), fetchStats()])
+        setData(d)
+        setStats(s)
+      }
     } catch (e) {
       setError(e.message)
     } finally {
@@ -41,6 +46,20 @@ export default function App() {
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-10 border-2 border-saffron/30 border-t-saffron rounded-full animate-spin" />
               <p className="text-slate-500 text-sm">Loading your data…</p>
+            </div>
+          </div>
+        )}
+
+        {!loading && authed === false && (
+          <div className="flex items-center justify-center h-full">
+            <div className="card max-w-sm text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-saffron to-spirit flex items-center justify-center mx-auto text-2xl">🔗</div>
+              <h2 className="text-lg font-bold text-white">Connect Google Sheets</h2>
+              <p className="text-slate-400 text-sm">Sign in with your Google account to load your 2026 habit data.</p>
+              <a href="http://localhost:8000/auth/login" className="btn-primary inline-block">
+                Sign in with Google
+              </a>
+              <p className="text-xs text-slate-600">After signing in, come back here and refresh.</p>
             </div>
           </div>
         )}
