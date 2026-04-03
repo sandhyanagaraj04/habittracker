@@ -6,7 +6,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8000',
+      '/sheet-data': {
+        target: 'https://docs.google.com',
+        changeOrigin: true,
+        rewrite: () =>
+          '/spreadsheets/d/1AKDObiI1KD9V32DCCMqaYR_sKCsg3YVreza9_N9JuUo/export?format=csv',
+      },
     },
   },
 })

@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { format } from 'date-fns'
-import { Check, Loader2, Save } from 'lucide-react'
-import { saveEntry } from '../api'
+import { Download, Copy, Check } from 'lucide-react'
+import { exportRowAsCSV, downloadCSV } from '../sheet'
 import { LABEL_MAP } from '../utils/transform'
 
-const today = format(new Date(), 'yyyy-MM-dd')
+const todayStr = format(new Date(), 'yyyy-MM-dd')
 
 const SECTIONS = [
   {
@@ -75,7 +75,7 @@ const SECTIONS = [
     title: '🥗 Meals',
     fields: [
       { key: 'breakfast_food',  type: 'text', label: 'Breakfast — What I ate' },
-      { key: 'breakfast_notes', type: 'text', label: 'Breakfast — Food source (cooked, ordered, etc.)' },
+      { key: 'breakfast_notes', type: 'text', label: 'Breakfast — Food source' },
       { key: 'lunch_food',      type: 'text', label: 'Lunch — What I ate' },
       { key: 'lunch_notes',     type: 'text', label: 'Lunch — Food source' },
       { key: 'snack_food',      type: 'text', label: 'Snack — What I ate' },
@@ -100,85 +100,68 @@ const SECTIONS = [
 function YesNoToggle({ value, onChange }) {
   return (
     <div className="flex rounded-lg overflow-hidden border border-border text-xs font-medium">
-      <button
-        type="button"
-        onClick={() => onChange(true)}
+      <button type="button" onClick={() => onChange(true)}
         className={`px-3 py-1.5 transition-all ${value === true
           ? 'bg-emerald-500/20 text-emerald-400 border-r border-emerald-500/20'
-          : 'text-slate-500 hover:text-slate-300 border-r border-border'}`}
-      >
+          : 'text-slate-500 hover:text-slate-300 border-r border-border'}`}>
         Yes
       </button>
-      <button
-        type="button"
-        onClick={() => onChange(false)}
+      <button type="button" onClick={() => onChange(false)}
         className={`px-3 py-1.5 transition-all ${value === false
           ? 'bg-rose-500/20 text-rose-400'
-          : 'text-slate-500 hover:text-slate-300'}`}
-      >
+          : 'text-slate-500 hover:text-slate-300'}`}>
         No
       </button>
     </div>
   )
 }
 
-export default function TodayEntry({ today: existingEntry, onSaved }) {
-  const [form, setForm] = useState({ date: today })
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState(null)
+export default function TodayEntry({ today: existing }) {
+  const [form, setForm]     = useState({ date: todayStr })
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (existingEntry) setForm({ ...existingEntry })
-    else setForm({ date: today })
-  }, [existingEntry])
+    if (existing) setForm({ ...existing })
+    else setForm({ date: todayStr })
+  }, [existing])
 
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    setSaving(true)
-    setError(null)
-    try {
-      await saveEntry(form)
-      setSaved(true)
-      onSaved()
-      setTimeout(() => setSaved(false), 3000)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
+  const handleDownload = () => {
+    const row = exportRowAsCSV(form, todayStr)
+    downloadCSV(row, todayStr)
+  }
+
+  const handleCopy = async () => {
+    const row = exportRowAsCSV(form, todayStr)
+    await navigator.clipboard.writeText(row)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
   }
 
   return (
-    <form onSubmit={handleSubmit} className="p-6 max-w-3xl mx-auto space-y-6 pb-20">
-      <div className="flex items-center justify-between">
+    <div className="p-6 max-w-3xl mx-auto space-y-6 pb-20">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Log Today</h1>
           <p className="text-slate-400 text-sm mt-1">{format(new Date(), 'EEEE, d MMMM yyyy')}</p>
         </div>
-        <button
-          type="submit"
-          disabled={saving}
-          className="btn-primary flex items-center gap-2"
-        >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <Save size={16} />}
-          {saving ? 'Saving…' : saved ? 'Saved!' : 'Save to Sheet'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleCopy} className="btn-ghost flex items-center gap-2 text-sm">
+            {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+            {copied ? 'Copied!' : 'Copy Row'}
+          </button>
+          <button onClick={handleDownload} className="btn-primary flex items-center gap-2 text-sm">
+            <Download size={14} />
+            Download CSV
+          </button>
+        </div>
       </div>
 
-      {error && (
-        <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm px-4 py-3 rounded-xl">
-          {error}
-        </div>
-      )}
-
-      {saved && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm px-4 py-3 rounded-xl flex items-center gap-2">
-          <Check size={14} /> Saved to Google Sheet successfully!
-        </div>
-      )}
+      <div className="card-sm bg-amber-500/5 border-amber-500/20 text-amber-300 text-xs flex gap-2 items-start">
+        <span className="mt-0.5">💡</span>
+        <span>Fill in your habits below, then click <strong>Download CSV</strong> or <strong>Copy Row</strong> — paste it as a new row in your Google Sheet.</span>
+      </div>
 
       {SECTIONS.map(({ title, fields }) => (
         <div key={title} className="card space-y-4">
@@ -186,7 +169,6 @@ export default function TodayEntry({ today: existingEntry, onSaved }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {fields.map(({ key, type, label, min, max }) => {
               const lbl = label ?? LABEL_MAP[key] ?? key
-
               if (type === 'yesno') {
                 return (
                   <div key={key} className="flex items-center justify-between gap-2">
@@ -195,7 +177,6 @@ export default function TodayEntry({ today: existingEntry, onSaved }) {
                   </div>
                 )
               }
-
               return (
                 <div key={key} className="flex flex-col gap-1.5">
                   <label className="text-xs text-slate-500">{lbl}</label>
@@ -203,8 +184,7 @@ export default function TodayEntry({ today: existingEntry, onSaved }) {
                     type={type === 'number' ? 'number' : type === 'time' ? 'time' : 'text'}
                     value={form[key] ?? ''}
                     onChange={e => set(key, e.target.value)}
-                    min={min}
-                    max={max}
+                    min={min} max={max}
                     className="w-full"
                     placeholder={type === 'number' ? '0' : ''}
                   />
@@ -215,12 +195,16 @@ export default function TodayEntry({ today: existingEntry, onSaved }) {
         </div>
       ))}
 
-      <div className="flex justify-end">
-        <button type="submit" disabled={saving} className="btn-primary flex items-center gap-2">
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {saving ? 'Saving…' : 'Save to Google Sheet'}
+      <div className="flex gap-2 justify-end">
+        <button onClick={handleCopy} className="btn-ghost flex items-center gap-2 text-sm">
+          {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+          {copied ? 'Copied!' : 'Copy Row'}
+        </button>
+        <button onClick={handleDownload} className="btn-primary flex items-center gap-2 text-sm">
+          <Download size={14} />
+          Download CSV
         </button>
       </div>
-    </form>
+    </div>
   )
 }
