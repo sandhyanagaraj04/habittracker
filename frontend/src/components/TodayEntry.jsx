@@ -75,13 +75,13 @@ const SECTIONS = [
     title: '🥗 Meals',
     fields: [
       { key: 'breakfast_food',  type: 'text', label: 'Breakfast — What I ate' },
-      { key: 'breakfast_notes', type: 'text', label: 'Breakfast — Notes' },
+      { key: 'breakfast_notes', type: 'text', label: 'Breakfast — Food source (cooked, ordered, etc.)' },
       { key: 'lunch_food',      type: 'text', label: 'Lunch — What I ate' },
-      { key: 'lunch_notes',     type: 'text', label: 'Lunch — Notes' },
+      { key: 'lunch_notes',     type: 'text', label: 'Lunch — Food source' },
       { key: 'snack_food',      type: 'text', label: 'Snack — What I ate' },
-      { key: 'snack_notes',     type: 'text', label: 'Snack — Notes' },
+      { key: 'snack_notes',     type: 'text', label: 'Snack — Food source' },
       { key: 'dinner_food',     type: 'text', label: 'Dinner — What I ate' },
-      { key: 'dinner_notes',    type: 'text', label: 'Dinner — Notes' },
+      { key: 'dinner_notes',    type: 'text', label: 'Dinner — Food source' },
     ],
   },
   {

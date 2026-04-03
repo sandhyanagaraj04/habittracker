@@ -118,11 +118,21 @@ export default function History({ data }) {
                     <div>
                       <p className="section-title">Meals</p>
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        {[['breakfast_food','Breakfast'],['lunch_food','Lunch'],['snack_food','Snack'],['dinner_food','Dinner']].map(([k, lbl]) =>
-                          row[k] ? (
-                            <div key={k} className="bg-white/3 rounded-lg px-3 py-2">
-                              <span className="text-slate-500">{lbl}: </span>
-                              <span className="text-slate-300">{row[k]}</span>
+                        {[
+                            ['breakfast_food','breakfast_notes','Breakfast'],
+                            ['lunch_food','lunch_notes','Lunch'],
+                            ['snack_food','snack_notes','Snack'],
+                            ['dinner_food','dinner_notes','Dinner'],
+                          ].map(([foodKey, srcKey, lbl]) =>
+                          row[foodKey] ? (
+                            <div key={foodKey} className="bg-white/3 rounded-lg px-3 py-2 space-y-0.5">
+                              <div>
+                                <span className="text-slate-500">{lbl}: </span>
+                                <span className="text-slate-300">{row[foodKey]}</span>
+                              </div>
+                              {row[srcKey] && (
+                                <div className="text-slate-500 text-xs">Source: {row[srcKey]}</div>
+                              )}
                             </div>
                           ) : null
                         )}
