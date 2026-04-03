@@ -1,5 +1,7 @@
 import os
-from google.oauth2.service_account import Credentials
+import pickle
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from dotenv import load_dotenv
 
@@ -8,6 +10,8 @@ load_dotenv()
 SPREADSHEET_ID = os.getenv("SPREADSHEET_ID", "1AKDObiI1KD9V32DCCMqaYR_sKCsg3YVreza9_N9JuUo")
 SHEET_NAME = os.getenv("SHEET_NAME", "Sheet1")
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+CLIENT_SECRETS_FILE = os.getenv("CLIENT_SECRETS_FILE", "client_secrets.json")
+TOKEN_FILE = os.getenv("TOKEN_FILE", "token.pickle")
 
 # Internal key names (aligned to column order in the sheet)
 COLUMN_MAP = [
@@ -76,10 +80,24 @@ NUMERIC_KEYS = {k for k, t in COLUMN_MAP if t == "number"}
 QUALITY_MAP = {"good": 4, "great": 5, "ok": 3, "bad": 2, "poor": 1, "excellent": 5}
 
 
+def _get_credentials():
+    creds = None
+    if os.path.exists(TOKEN_FILE):
+        with open(TOKEN_FILE, "rb") as f:
+            creds = pickle.load(f)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS_FILE, SCOPES)
+            creds = flow.run_local_server(port=0)
+        with open(TOKEN_FILE, "wb") as f:
+            pickle.dump(creds, f)
+    return creds
+
+
 def _get_service():
-    creds_file = os.getenv("GOOGLE_CREDENTIALS_FILE", "credentials.json")
-    creds = Credentials.from_service_account_file(creds_file, scopes=SCOPES)
-    return build("sheets", "v4", credentials=creds)
+    return build("sheets", "v4", credentials=_get_credentials())
 
 
 def _normalize_row(raw: list) -> dict:
