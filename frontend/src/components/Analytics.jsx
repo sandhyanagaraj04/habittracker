@@ -353,27 +353,12 @@ export default function Analytics({ data }) {
 
       {sub === 'overview' && <OverviewCards data={data} />}
       {sub === 'q1' && (
-        <>
-          {/* Temporary debug panel – remove once date issue is resolved */}
-          <div style={{ background: '#1a1a2e', border: '1px solid #f9731633', borderRadius: 8, padding: '10px 14px', fontSize: 11, color: '#94a3b8', marginBottom: 12 }}>
-            <strong style={{ color: '#f97316' }}>Debug:</strong>
-            {' '}total rows loaded: <strong style={{ color: '#e2e8f0' }}>{data.length}</strong>
-            {' · '}q1 rows: <strong style={{ color: '#e2e8f0' }}>{q1.length}</strong>
-            {data.length > 0 && (
-              <>
-                {' · '}first date in data: <strong style={{ color: '#34d399' }}>"{data[0]?.date}"</strong>
-                {' · '}guru_pooja[0]: <strong style={{ color: '#34d399' }}>"{String(data[0]?.guru_pooja)}"</strong>
-                {' · '}upa_yoga[0]: <strong style={{ color: '#34d399' }}>"{String(data[0]?.upa_yoga)}"</strong>
-              </>
-            )}
-          </div>
-          <HabitRowGrid
-            rows={q1}
-            totalDays={Q1_TOTAL_DAYS}
-            dateList={Q1_DATES}
-            label="Q1 (Jan–Mar) — 90 Days"
-          />
-        </>
+        <HabitRowGrid
+          rows={q1}
+          totalDays={Q1_TOTAL_DAYS}
+          dateList={Q1_DATES}
+          label="Q1 (Jan–Mar) — 90 Days"
+        />
       )}
       {sub === 'q2' && (
         <HabitRowGrid
