@@ -1,5 +1,4 @@
 import Papa from 'papaparse'
-import { parse as dateParse, isValid } from 'date-fns'
 
 // Internal key → original sheet column header (in exact column order)
 export const COLUMN_MAP = [
@@ -75,30 +74,50 @@ export const NUMERIC_KEYS = new Set(['ashwat_count','steps','heart_points','read
 
 const QUALITY_MAP = { good:4, great:5, ok:3, bad:2, poor:1, excellent:5 }
 
-// Handles multiple date formats Google Sheets may export:
-// DD/MM/YYYY, MM/DD/YYYY, D/M/YYYY, YYYY-MM-DD, "Jan 1, 2026", "1-Jan-2026", etc.
-const DATE_FORMATS = [
-  'dd/MM/yyyy',   // 01/01/2026  ← user's format
-  'd/M/yyyy',     // 1/1/2026
-  'MM/dd/yyyy',   // 01/01/2026 (US)
-  'yyyy-MM-dd',   // 2026-01-01
-  'MMM d, yyyy',  // Jan 1, 2026
-  'MMMM d, yyyy', // January 1, 2026
-  'd MMM yyyy',   // 1 Jan 2026
-  'd-MMM-yyyy',   // 1-Jan-2026
-  'dd-MM-yyyy',   // 01-01-2026
-]
-const REF = new Date(2026, 0, 1)
+const MONTH_NAMES = {
+  jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',
+  jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12',
+}
 
+// Pure string parsing — no Date objects, no timezone issues.
+// Handles every format Google Sheets is known to export.
 function parseDateToISO(str) {
   const s = String(str ?? '').trim()
   if (!s) return ''
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s  // already ISO
-  for (const fmt of DATE_FORMATS) {
-    const d = dateParse(s, fmt, REF)
-    if (isValid(d)) return d.toISOString().slice(0, 10)
+
+  // Already ISO YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+
+  // DD/MM/YYYY or D/M/YYYY  (user's confirmed format: 01/01/2026)
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`
+
+  // DD-MM-YYYY
+  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/)
+  if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`
+
+  // "Jan 1, 2026" or "January 1, 2026"
+  m = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/)
+  if (m) {
+    const mo = MONTH_NAMES[m[1].toLowerCase().slice(0,3)]
+    if (mo) return `${m[3]}-${mo}-${m[2].padStart(2,'0')}`
   }
-  return s  // return as-is if unparseable
+
+  // "1 Jan 2026"
+  m = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/)
+  if (m) {
+    const mo = MONTH_NAMES[m[2].toLowerCase().slice(0,3)]
+    if (mo) return `${m[3]}-${mo}-${m[1].padStart(2,'0')}`
+  }
+
+  // "1-Jan-2026"
+  m = s.match(/^(\d{1,2})-([A-Za-z]+)-(\d{4})$/)
+  if (m) {
+    const mo = MONTH_NAMES[m[2].toLowerCase().slice(0,3)]
+    if (mo) return `${m[3]}-${mo}-${m[1].padStart(2,'0')}`
+  }
+
+  return s  // unparseable — return as-is
 }
 
 function normaliseRow(raw) {
