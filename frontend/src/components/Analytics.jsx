@@ -89,6 +89,11 @@ function SubTab({ active, onClick, children }) {
   )
 }
 
+// Box colours (plain inline styles avoid Tailwind JIT purging issues)
+const BOX_YES    = { background: '#10b981' }          // emerald-500
+const BOX_NO     = { background: 'rgba(244,63,94,0.6)' } // rose-500/60
+const BOX_NODATA = { background: 'rgba(255,255,255,0.07)' }
+
 // ── 90-day row grid ───────────────────────────────────────────────────────────
 function HabitRowGrid({ rows, totalDays, dateList, label }) {
   const [expanded, setExpanded] = useState(null)
@@ -100,74 +105,90 @@ function HabitRowGrid({ rows, totalDays, dateList, label }) {
   }, [rows])
 
   return (
-    <div className="card p-0 overflow-hidden">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <p className="section-title mb-0">{label}</p>
-        <p className="text-xs text-slate-500">{totalDays} days · {rows.length} logged</p>
+    <div style={{ background: 'var(--color-bg-card, #12121f)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '1rem' }}>
+      {/* Header */}
+      <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#64748b' }}>
+          {label}
+        </span>
+        <span style={{ fontSize: 11, color: '#475569' }}>
+          {rows.length} / {totalDays} days logged
+          {rows.length === 0 && ' — check sheet is public'}
+        </span>
       </div>
 
       {/* Legend */}
-      <div className="px-4 pt-2 pb-1 flex items-center gap-4 text-xs text-slate-500 border-b border-white/3">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />Yes</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-rose-500/70 inline-block" />No</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-white/10 inline-block" />No data</span>
+      <div style={{ padding: '8px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)', display: 'flex', gap: 16, fontSize: 11, color: '#64748b' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ ...BOX_YES, width: 10, height: 10, borderRadius: 2, display: 'inline-block' }} /> Yes
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ ...BOX_NO, width: 10, height: 10, borderRadius: 2, display: 'inline-block' }} /> No
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ ...BOX_NODATA, width: 10, height: 10, borderRadius: 2, display: 'inline-block' }} /> No data
+        </span>
       </div>
 
-      <div className="divide-y divide-white/3">
-        {ALL_HABIT_KEYS.map(key => {
-          const isOpen = expanded === key
-          const stats  = habitStats(rows, totalDays, key)
-          const rate   = totalDays ? Math.round((stats.yes / totalDays) * 100) : 0
-          const streak = calcStreak(rows, key)
+      {/* Habit rows */}
+      {ALL_HABIT_KEYS.map((key, idx) => {
+        const isOpen = expanded === key
+        const stats  = habitStats(rows, totalDays, key)
+        const rate   = totalDays ? Math.round((stats.yes / totalDays) * 100) : 0
+        const streak = calcStreak(rows, key)
+        const isLast = idx === ALL_HABIT_KEYS.length - 1
 
-          return (
-            <div key={key}>
-              <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-white/2 transition-colors">
-                <button
-                  onClick={() => setExpanded(isOpen ? null : key)}
-                  className="text-slate-600 hover:text-slate-300 flex-shrink-0 text-xs w-3"
-                  title="Toggle summary"
-                >
-                  {isOpen ? '▲' : '▼'}
-                </button>
+        return (
+          <div key={key} style={{ borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.03)' }}>
+            {/* Row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 12px' }}>
+              {/* Toggle button */}
+              <button
+                onClick={() => setExpanded(isOpen ? null : key)}
+                title="Toggle summary"
+                style={{ flexShrink: 0, width: 14, fontSize: 9, color: '#475569', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                {isOpen ? '▲' : '▼'}
+              </button>
 
-                <span className="text-xs text-slate-300 w-40 flex-shrink-0 truncate" title={LABEL_MAP[key] ?? key}>
-                  {LABEL_MAP[key] ?? key}
-                </span>
+              {/* Habit label */}
+              <span
+                title={LABEL_MAP[key] ?? key}
+                style={{ flexShrink: 0, width: 148, fontSize: 11, color: '#cbd5e1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              >
+                {LABEL_MAP[key] ?? key}
+              </span>
 
-                <div className="flex gap-px overflow-x-auto flex-1 min-w-0 py-0.5">
-                  {dateList.map(date => {
-                    const row = dataByDate[date]
-                    const v   = row ? row[key] : null
-                    const cls = v === true
-                      ? 'bg-emerald-500'
-                      : v === false
-                        ? 'bg-rose-500/70'
-                        : 'bg-white/10'
-                    return (
-                      <span
-                        key={date}
-                        className={`flex-shrink-0 w-2 h-4 rounded-sm ${cls}`}
-                        title={`${safeFormat(date)}: ${v === true ? 'Yes' : v === false ? 'No' : 'No data'}`}
-                      />
-                    )
-                  })}
-                </div>
+              {/* Day boxes */}
+              <div style={{ display: 'flex', gap: 1, overflowX: 'auto', flex: 1, minWidth: 0, paddingBottom: 2 }}>
+                {dateList.map(date => {
+                  const row = dataByDate[date]
+                  const v   = row != null ? row[key] : null
+                  const boxStyle = v === true ? BOX_YES : v === false ? BOX_NO : BOX_NODATA
+                  return (
+                    <span
+                      key={date}
+                      title={`${safeFormat(date)}: ${v === true ? 'Yes' : v === false ? 'No' : 'No data'}`}
+                      style={{ flexShrink: 0, width: 8, height: 16, borderRadius: 2, ...boxStyle }}
+                    />
+                  )
+                })}
               </div>
-
-              {isOpen && (
-                <div className="flex items-center gap-5 px-8 pb-2.5 pt-0.5 text-xs">
-                  <span className="text-emerald-400 font-medium">✓ {stats.yes} yes</span>
-                  <span className="text-rose-400">✗ {stats.no} no</span>
-                  <span className="text-slate-600">— {stats.noData} no data</span>
-                  <span className="text-saffron font-semibold">{rate}%</span>
-                  <span className="text-slate-400">🔥 {streak}d streak</span>
-                </div>
-              )}
             </div>
-          )
-        })}
-      </div>
+
+            {/* Summary (expanded) */}
+            {isOpen && (
+              <div style={{ display: 'flex', gap: 16, padding: '2px 40px 8px', fontSize: 11 }}>
+                <span style={{ color: '#34d399', fontWeight: 600 }}>✓ {stats.yes} yes</span>
+                <span style={{ color: '#fb7185' }}>✗ {stats.no} no</span>
+                <span style={{ color: '#475569' }}>— {stats.noData} no data</span>
+                <span style={{ color: '#f97316', fontWeight: 600 }}>{rate}%</span>
+                <span style={{ color: '#94a3b8' }}>🔥 {streak}d streak</span>
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

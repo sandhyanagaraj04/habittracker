@@ -1,4 +1,5 @@
 import Papa from 'papaparse'
+import { parse as dateParse, isValid } from 'date-fns'
 
 // Internal key → original sheet column header (in exact column order)
 export const COLUMN_MAP = [
@@ -74,11 +75,30 @@ export const NUMERIC_KEYS = new Set(['ashwat_count','steps','heart_points','read
 
 const QUALITY_MAP = { good:4, great:5, ok:3, bad:2, poor:1, excellent:5 }
 
-function parseDDMMYYYY(str) {
-  const m = String(str ?? '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
-  if (!m) return str
-  const [, dd, mm, yyyy] = m
-  return `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`
+// Handles multiple date formats Google Sheets may export:
+// DD/MM/YYYY, MM/DD/YYYY, D/M/YYYY, YYYY-MM-DD, "Jan 1, 2026", "1-Jan-2026", etc.
+const DATE_FORMATS = [
+  'dd/MM/yyyy',   // 01/01/2026  ← user's format
+  'd/M/yyyy',     // 1/1/2026
+  'MM/dd/yyyy',   // 01/01/2026 (US)
+  'yyyy-MM-dd',   // 2026-01-01
+  'MMM d, yyyy',  // Jan 1, 2026
+  'MMMM d, yyyy', // January 1, 2026
+  'd MMM yyyy',   // 1 Jan 2026
+  'd-MMM-yyyy',   // 1-Jan-2026
+  'dd-MM-yyyy',   // 01-01-2026
+]
+const REF = new Date(2026, 0, 1)
+
+function parseDateToISO(str) {
+  const s = String(str ?? '').trim()
+  if (!s) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s  // already ISO
+  for (const fmt of DATE_FORMATS) {
+    const d = dateParse(s, fmt, REF)
+    if (isValid(d)) return d.toISOString().slice(0, 10)
+  }
+  return s  // return as-is if unparseable
 }
 
 function normaliseRow(raw) {
@@ -87,8 +107,8 @@ function normaliseRow(raw) {
     entry[key] = raw[i] ?? ''
   })
 
-  // Convert DD/MM/YYYY → ISO YYYY-MM-DD for correct sorting & comparison
-  entry.date = parseDDMMYYYY(entry.date)
+  // Normalise date to ISO YYYY-MM-DD regardless of sheet export format
+  entry.date = parseDateToISO(entry.date)
 
   // null = no data entered, true = Yes, false = No
   YES_NO_KEYS.forEach(k => {
