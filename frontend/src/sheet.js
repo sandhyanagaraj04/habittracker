@@ -96,6 +96,13 @@ function parseDateToISO(str) {
   m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/)
   if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`
 
+  // "Apr 1" or "Apr 01" — no year, Google Sheets short date format (assume 2026)
+  m = s.match(/^([A-Za-z]+)\s+(\d{1,2})$/)
+  if (m) {
+    const mo = MONTH_NAMES[m[1].toLowerCase().slice(0,3)]
+    if (mo) return `2026-${mo}-${m[2].padStart(2,'0')}`
+  }
+
   // "Jan 1, 2026" or "January 1, 2026"
   m = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/)
   if (m) {
